@@ -22,6 +22,7 @@ class DialogAct(object):
 
         with open(filename, 'r') as f:
             last_tag = ""
+            #advisor_asking = False
             for line in f.readlines():
                 line = line.lower().strip()
                 person = line.split(":")[0]
@@ -38,14 +39,21 @@ class DialogAct(object):
                         if not word:
                             continue
                         if ord(word[-1]) < 65 or ord(word[-1]) > 122:
+                            mark = word[-1]
                             word = word[:-1]
+                            self.tag_adv_word_count[tag][mark] += 1
+                            #if mark == "?":
+                                #advisor_asking = True
+                        #if word.isdigit():
+                            #word = 'info_number'
                         self.tag_adv_word_count[tag][word] += 1
                 else:
                     start_of_conversation = 9
                     if last_tag == "":
                         continue
-                    for word in line[start_of_conversation:].split(" "):
-                        self.tag_stu_word_count[last_tag][word] += 1
+                    #if advisor_asking:
+                        #for word in line[start_of_conversation:].split(" "):
+                            #self.tag_stu_word_count[last_tag][word] += 1
         for tag in self.tag_adv_word_count.keys():
             self.answers.append(tag)
 
@@ -56,7 +64,7 @@ class DialogAct(object):
             del self.tag_adv_word_count[tag][""]
             self.word_count_for_each_tag[tag] = sum(self.tag_adv_word_count[tag].values())
             self.V += self.word_count_for_each_tag[tag]
-        print self.tag_adv_word_count
+
 
     def test(self, filename):
         golden_result = []
@@ -76,13 +84,20 @@ class DialogAct(object):
                         if not word:
                             continue
                         if ord(word[-1]) < 65 or ord(word[-1]) > 122:
+                            mark = word[-1]
                             word = word[:-1]
+                            for tag in probs.keys():
+                                probs[tag] += log((self.tag_adv_word_count[tag][mark] + 1.0) / (self.word_count_for_each_tag[tag] + self.V))
                         for tag in probs.keys():
                             probs[tag] += log((self.tag_adv_word_count[tag][word] + 1.0) / (self.word_count_for_each_tag[tag] + self.V))
                     res = sorted(probs.items(), key = lambda x: x[1], reverse = True)[0][0]
                     my_result.append(res)
-            #print golden_result
-            #print my_result
+
+            error_count = Counter()
+            for i in xrange(len(my_result)):
+                if my_result[i] != golden_result[i]:
+                    error_count[(my_result[i], golden_result[i])] += 1
+            print error_count.most_common(10)
         accuracy = self.evaluation(my_result, golden_result)
         print "The accuracy is %.2f" %accuracy
 
